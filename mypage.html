@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Infinite Swipe Image Viewer</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: black;
+    }
+
+    #fullscreen-container {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: black;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      overflow: hidden;
+    }
+
+    .image-wrapper {
+      display: flex;
+      transition: transform 0.3s ease;
+      width: 100%;
+      height: 100%;
+    }
+
+    .image-slide {
+      flex-shrink: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .image-slide img {
+      max-width: 95%;
+      max-height: 95%;
+      object-fit: contain;
+      border-radius: 10px;
+      user-drag: none;
+      -webkit-user-drag: none;
+    }
+
+    .nav-arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 30px;
+      color: white;
+      background: rgba(0, 0, 0, 0.5);
+      border: none;
+      cursor: pointer;
+      padding: 15px;
+      border-radius: 50%;
+      z-index: 10;
+    }
+
+    #prev-btn { left: 20px; }
+    #next-btn { right: 20px; }
+
+    @media (max-width: 768px) {
+      .nav-arrow {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="fullscreen-container">
+    <div class="image-wrapper" id="image-wrapper">
+      <!-- Slides will be injected by JavaScript -->
+    </div>
+    <button id="prev-btn" class="nav-arrow">&#10094;</button>
+    <button id="next-btn" class="nav-arrow">&#10095;</button>
+  </div>
+
+  <script>
+    const images = ['unlimitidplans.jpg', 'limitedplans.jpg'];
+    const wrapper = document.getElementById('image-wrapper');
+    let currentIndex = 1; // start from 1 because of the cloned first slide at the beginning
+    let isDragging = false, startX = 0, currentX = 0;
+
+    // Build slides with clone
+    function createSlides() {
+      // Clone last image to the start
+      const lastClone = createSlide(images[images.length - 1]);
+      wrapper.appendChild(lastClone);
+
+      // Real slides
+      images.forEach(src => {
+        const slide = createSlide(src);
+        wrapper.appendChild(slide);
+      });
+
+      // Clone first image to the end
+      const firstClone = createSlide(images[0]);
+      wrapper.appendChild(firstClone);
+    }
+
+    function createSlide(src) {
+      const slide = document.createElement('div');
+      slide.className = 'image-slide';
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = 'Slide image';
+      slide.appendChild(img);
+      return slide;
+    }
+
+    function updatePosition() {
+      wrapper.style.transition = 'transform 0.3s ease';
+      wrapper.style.transform = `translateX(-${currentIndex * 100}%)`;
+    }
+
+    function jumpTo(index) {
+      wrapper.style.transition = 'none';
+      wrapper.style.transform = `translateX(-${index * 100}%)`;
+      currentIndex = index;
+    }
+
+    function goToNext() {
+      if (currentIndex >= images.length + 1) return;
+      currentIndex++;
+      updatePosition();
+    }
+
+    function goToPrev() {
+      if (currentIndex <= 0) return;
+      currentIndex--;
+      updatePosition();
+    }
+
+    // Touch Events
+    wrapper.addEventListener('touchstart', e => {
+      startX = e.touches[0].clientX;
+      isDragging = true;
+      wrapper.style.transition = 'none';
+    });
+
+    wrapper.addEventListener('touchmove', e => {
+      if (!isDragging) return;
+      currentX = e.touches[0].clientX;
+      const deltaX = currentX - startX;
+      wrapper.style.transform = `translateX(calc(-${currentIndex * 100}% + ${deltaX}px))`;
+    });
+
+    wrapper.addEventListener('touchend', () => {
+      if (!isDragging) return;
+      isDragging = false;
+      const deltaX = currentX - startX;
+      const threshold = 50;
+
+      if (deltaX > threshold) goToPrev();
+      else if (deltaX < -threshold) goToNext();
+      else updatePosition(); // snap back
+    });
+
+    // Desktop buttons
+    document.getElementById('prev-btn').addEventListener('click', goToPrev);
+    document.getElementById('next-btn').addEventListener('click', goToNext);
+
+    // Keyboard
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowLeft') goToPrev();
+      if (e.key === 'ArrowRight') goToNext();
+      if (e.key === 'Escape') {
+        document.getElementById('fullscreen-container').style.visibility = 'hidden';
+      }
+    });
+
+    // Listen for transition end to loop
+    wrapper.addEventListener('transitionend', () => {
+      if (currentIndex === 0) {
+        jumpTo(images.length);
+      } else if (currentIndex === images.length + 1) {
+        jumpTo(1);
+      }
+    });
+
+    // Init
+    document.addEventListener('DOMContentLoaded', () => {
+      createSlides();
+      jumpTo(currentIndex); // Jump to the first real image
+    });
+  </script>
+
+</body>
+</html>
+
